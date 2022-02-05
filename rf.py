@@ -1,196 +1,128 @@
-#RF
-from sklearn.tree import export_graphviz
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+#instalar biblioteca Orange Canvas
+!pip install Orange3
 
-"""#### Carregando a base de dados."""
+#importar biblioteca Orange Canvas
+import Orange
 
-df_edu = pd.read_csv('xAPI-Edu-Data.csv')
+#importar dados do disco local
+from google.colab import files  
+files.upload()
 
-df_edu.head()
+#instanciar objeto de dados com base no caminho gerado com a importação do arquivo
+dados = Orange.data.Table("/content/Simulacao-1-dados.csv")
 
-"""#### Verificando as distribuições de classes."""
+#imprimir os primeiro 5 registros
+for d in dados[:5]:
+  print(d)
 
-df_edu['Class'].value_counts()
+#explorar os metadados
+qtde_campos = len(dados.domain.attributes)
+qtde_cont = sum(1 for a in dados.domain.attributes if a.is_continuous)
+qtde_disc = sum(1 for a in dados.domain.attributes if a.is_discrete)
+print("%d metadados: %d continuos, %d discretos" % (qtde_campos, qtde_cont, qtde_disc))
+print("Nome dos metadados:", ", ".join(dados.domain.attributes[i].name for i in range(qtde_campos)),)
 
-"""#### Verificando os registros nulos"""
+#explorar domínios
+dados.domain.attributes
 
-df_edu.isnull().sum()
+#explorar classe
+dados.domain.class_var
 
-"""#### Codificando os atributos numéricos."""
+#explorar dados
+print("Campos:", ", ".join(c.name for c in dados.domain.attributes))
+print("Registros:", len(dados))
+print("Valor do registro 1 da coluna 1:", dados[0][0])
+print("Valor do registro 2 da coluna 2:", dados[1][1])
 
-Features = df_edu
-Cat_Colums = Features.dtypes.pipe(lambda Features: Features[Features=='object']).index
-for col in Cat_Colums:
-    label = LabelEncoder()
-    Features[col] = label.fit_transform(Features[col])
+#criar amostra
+qtde100 = len(dados)
+qtde70 = len(dados) * 70 / 100
+qtde30 = len(dados) * 30 / 100
+print("Qtde 100%:", qtde100)
+print("Qtde  70%:", qtde70)
+print("Qtde  30%:", qtde30)
+amostra = Orange.data.Table(dados.domain, [d for d in dados if d.row_index < qtde70])
+print("Registros:", len(dados))
+print("Registros:", len(amostra))
 
-Features.head()
+#Técnica Random Forest (RF)
+rf = Orange.classification.RandomForestLearner(n_estimators=10, criterion='gini', max_depth=None, min_samples_split=2, min_samples_leaf=1, min_weight_fraction_leaf=0.0, max_features='auto', max_leaf_nodes=None, bootstrap=True, oob_score=False, n_jobs=1, random_state=None, verbose=0, class_weight=None, preprocessors=None)
 
-"""#### Dividindo os dados em treino e teste"""
+#ligar técnica RF aos dados
+dados_rf = rf(dados)
 
-from sklearn.model_selection import train_test_split
+#treinar e testar técnica RF com os dados
+avalia_rf = Orange.evaluation.CrossValidation(dados, [rf], k=5)
 
-X_train, X_test, y_train, y_test = train_test_split(df_edu.drop('Class',axis=1),df_edu['Class'],test_size=0.3,random_state=0)
+#avaliar os indicadores para o RF
+print("Acurácia:  %.3f" % Orange.evaluation.scoring.CA(avalia_rf)[0])
+print("Precisão:  %.3f" % Orange.evaluation.scoring.Precision(avalia_rf)[0])
+print("Revocação: %.3f" % Orange.evaluation.scoring.Recall(avalia_rf)[0])
+print("F1:        %.3f" % Orange.evaluation.scoring.F1(avalia_rf)[0])
+print("ROC:       %.3f" % Orange.evaluation.scoring.AUC(avalia_rf)[0])
 
-"""#### Verificando a forma dos dados"""
+#Técnica Support Vector Machine (SVM)
+svm = Orange.classification.SVMLearner(C=1.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=False, tol=0.001, cache_size=200, max_iter=-1, preprocessors=None)
 
-X_train.shape,X_test.shape
+#ligar técnica SVM aos dados
+dados_svm = svm(dados)
 
-y_train.shape,y_test.shape
+#treinar e testar técnica SVM com os dados
+avalia_svm = Orange.evaluation.CrossValidation(dados, [svm], k=5)
 
-"""#### Instânciando o objeto classificador"""
+#avaliar os indicadores para o SVM
+print("Acurácia:  %.3f" % Orange.evaluation.scoring.CA(avalia_svm)[0])
+print("Precisão:  %.3f" % Orange.evaluation.scoring.Precision(avalia_svm)[0])
+print("Revocação: %.3f" % Orange.evaluation.scoring.Recall(avalia_svm)[0])
+print("F1:        %.3f" % Orange.evaluation.scoring.F1(avalia_svm)[0])
+print("ROC:       %.3f" % Orange.evaluation.scoring.AUC(avalia_svm)[0])
 
-random_clf = RandomForestClassifier()
+#Ténica k-Nearest Neighbors
+knn = Orange.classification.KNNLearner(n_neighbors=5, metric='euclidean', weights='distance', algorithm='auto', metric_params=None, preprocessors=None)
 
-"""#### Parâmetros do  objeto RandomForestClassifier
-* <span style="color:red">n_estimators: número de árvores que serão criadas na floresta.</span>
-* <span style="color:red"> bootstrap: se será considerado o bootstrap dataset durante a criação das árvores.</span>
-* <span style="color:red"> max_features: número total de features que as árvores serão criadas.</span>
-* criterion: medida de qualidade da divisão.
-* splitter: estratégia utilizada para dividir o nó de decisão.
-* max_depth: profundidade máxima da árvore.
-* min_samples_split: número de amostras mínimas para considerar um nó para divisão.
-* min_samples_leaf: número de amostras mínimas no nível folha.
+#ligar técnica KNN aos dados
+dados_knn = knn(dados)
 
-#### Treinando o modelo Random Forest
-"""
+#treinar e testar técnica KNN com os dados
+avalia_knn = Orange.evaluation.CrossValidation(dados, [knn], k=10)
 
-random_clf.fit(X_train,y_train)
+#avaliar os indicadores para o KNN
+print("Acurácia:  %.3f" % Orange.evaluation.scoring.CA(avalia_knn)[0])
+print("Precisão:  %.3f" % Orange.evaluation.scoring.Precision(avalia_knn)[0])
+print("Revocação: %.3f" % Orange.evaluation.scoring.Recall(avalia_knn)[0])
+print("F1:        %.3f" % Orange.evaluation.scoring.F1(avalia_knn)[0])
+print("ROC:       %.3f" % Orange.evaluation.scoring.AUC(avalia_knn)[0])
 
-"""#### Predizendo as classes a partir do modelo treinado utilizando o conjunto de teste"""
+#validar probabilidade para o alvo para as 3 técnicas
+import random
+random.seed(42)
+testa = Orange.data.Table(dados.domain, random.sample(dados, 5))
+treina = Orange.data.Table(dados.domain, [d for d in dados if d not in testa])
+aprende = [rf, svm, knn]
+classifica = [learner(treina) for learner in aprende]
 
-resultado = random_clf.predict(X_test)
+#imprimir a probabilidade
 
-resultado
+alvo = 0
+print("Probabilidade para %s:" % dados.domain.class_var.values[alvo])
+print("Classe Alvo", " ".join("%-5s" % l.name for l in classifica))
 
-"""#### Métricas de Validação"""
+c_valores = dados.domain.class_var.values
+for d in testa:
+    print(
+        ("{:<15} " + " {:.2f}" * len(classifica)).format(
+            c_valores[int(d.get_class())], *(c(d, 1)[alvo] for c in classifica)
+        )
+    )
 
-from sklearn import metrics
-print(metrics.classification_report(y_test,resultado))
+#validar o aprendizado para as 3 técnicas
+aprendizado = [rf, svm, knn]
+avaliacao = Orange.evaluation.CrossValidation(dados, aprendizado, k=5)
 
-"""#### Verificando as features mais importantes para o modelo treinado"""
-
-random_clf.feature_importances_
-
-feature_imp = pd.Series(random_clf.feature_importances_,index=X_train.columns).sort_values(ascending=False)
-
-feature_imp
-
-"""#### Features mais importantes de forma gráfica"""
-
-# Commented out IPython magic to ensure Python compatibility.
-def visualiza_features_importantes(features_lista):
-#     %matplotlib inline
-
-    plt.figure(figsize=(16,8))
-    sns.barplot(x=features_lista, y=features_lista.index)
-
-    plt.xlabel('Feature Importance Score')
-    plt.ylabel('Features')
-    plt.title("Visualizing Important Features")
-    plt.show()
-
-visualiza_features_importantes(feature_imp)
-
-"""#### Selecionando apenas as features com importancia acima de um determinado score."""
-
-features_selecionadas = []
-for feature,importancia in feature_imp.iteritems():
-    if importancia > 0.03:
-        print("{}:\t{}".format(feature, importancia))
-        features_selecionadas.append(feature)
-
-"""#### Separando os dados em treino e teste utilizando apenas as features selecionadas"""
-
-X_train, X_test, y_train, y_test = train_test_split(
-    df_edu[features_selecionadas],
-    df_edu['Class'],
-    test_size=0.3,
-    random_state=0
-)
-
-"""#### Verificando a nova forma dos dados"""
-
-X_train.shape,X_test.shape
-
-y_train.shape,y_test.shape
-
-"""#### Instânciando o objeto classificador"""
-
-random_clf = RandomForestClassifier(random_state=0)
-
-"""#### Treinando novamente o modelo Random Forest"""
-
-random_clf.fit(X_train,y_train)
-
-"""#### Executando o algoritmo de arvore de decisão com o conjunto de teste"""
-
-resultado = random_clf.predict(X_test)
-resultado
-
-"""#### Métricas de Validação"""
-
-from sklearn import metrics
-print(metrics.classification_report(y_test,resultado))
-
-"""## Explorando as árvores da Floresta gerada"""
-
-print("Número de árvores da floresta: {}".format(len(random_clf.estimators_)))
-print("Árvores floresta gerada:")
-for tree in random_clf.estimators_:
-    print("\nNumero de nós: {}".format(tree.tree_.node_count))
-    print("Profundidade da árvore: {}".format(tree.tree_.max_depth))
-    print("Features importantes: {}".format(tree.feature_importances_))
-    print("\nObjeto: {}".format(tree))
-
-"""#### Selecionando uma árvore da floresta"""
-
-tree0 = random_clf.estimators_[0]
-
-"""#### Visualizando de forma gráfica"""
-
-from sklearn.tree import export_graphviz
-import graphviz 
-
-dot_data = export_graphviz(
-         tree0,
-         max_depth=2,
-         out_file=None,
-         feature_names=X_train.columns,
-         class_names=['0','1','2'], 
-         filled=True, rounded=True,
-         proportion=True,
-         node_ids=True,
-         rotate=False,
-         label='all',
-         special_characters=True
-        )  
-graph = graphviz.Source(dot_data)  
-graph
-
-"""#### Selecionando outra árvore da floresta"""
-
-tree1 = random_clf.estimators_[1]
-
-"""#### Visualizando de forma gráfica"""
-
-dot_data = export_graphviz(
-         tree1,
-         max_depth=2,
-         out_file=None,
-         feature_names=X_train.columns,
-         class_names=['0','1','2'], 
-         filled=True, rounded=True,
-         proportion=True,
-         node_ids=True,
-         rotate=False,
-         label='all',
-         special_characters=True
-        )  
-graph = graphviz.Source(dot_data)  
-graph
+#imprimir os indicadores para as 3 técnicas
+print(" " * 10 + "  ".join("%-4s" % learner.name for learner in aprendizado))
+print("Acurácia  %s" % "  ".join("%.2f" % s for s in Orange.evaluation.CA(avaliacao)))
+print("Precisão  %s" % "  ".join("%.2f" % s for s in Orange.evaluation.Precision(avaliacao)))
+print("Revocação %s" % "  ".join("%.2f" % s for s in Orange.evaluation.Recall(avaliacao)))
+print("F1        %s" % "  ".join("%.2f" % s for s in Orange.evaluation.F1(avaliacao)))
+print("ROC       %s" % "  ".join("%.2f" % s for s in Orange.evaluation.AUC(avaliacao)))
