@@ -11,7 +11,7 @@ files.upload()
 #instanciar objeto de dados com base no caminho gerado com a importação do arquivo
 dados = Orange.data.Table("/content/Simulacao-1-dados.csv")
 
-#imprimir os primeiro 5 registros
+#imprimir os primeiros 5 registros
 for d in dados[:5]:
   print(d)
 
@@ -101,16 +101,30 @@ treina = Orange.data.Table(dados.domain, [d for d in dados if d not in testa])
 aprende = [rf, svm, knn]
 classifica = [learner(treina) for learner in aprende]
 
-#imprimir a probabilidade
+#imprimir a probabilidade para primeiro domínio da classe
 
 alvo = 0
 print("Probabilidade para %s:" % dados.domain.class_var.values[alvo])
-print("Classe Alvo", " ".join("%-5s" % l.name for l in classifica))
+print("Classe Alvo |", " | ".join("%-5s" % l.name for l in classifica))
 
 c_valores = dados.domain.class_var.values
 for d in testa:
     print(
-        ("{:<15} " + " {:.2f}" * len(classifica)).format(
+        ("{:<15} " + " | {:.2f}" * len(classifica)).format(
+            c_valores[int(d.get_class())], *(c(d, 1)[alvo] for c in classifica)
+        )
+    )
+
+#imprimir a probabilidade para segundo domínio da classe
+
+alvo = 1
+print("Probabilidade para %s:" % dados.domain.class_var.values[alvo])
+print("Classe Alvo |", " | ".join("%-5s" % l.name for l in classifica))
+
+c_valores = dados.domain.class_var.values
+for d in testa:
+    print(
+        ("{:<15} " + " | {:.2f}" * len(classifica)).format(
             c_valores[int(d.get_class())], *(c(d, 1)[alvo] for c in classifica)
         )
     )
@@ -120,9 +134,9 @@ aprendizado = [rf, svm, knn]
 avaliacao = Orange.evaluation.CrossValidation(dados, aprendizado, k=5)
 
 #imprimir os indicadores para as 3 técnicas
-print(" " * 10 + "  ".join("%-4s" % learner.name for learner in aprendizado))
-print("Acurácia  %s" % "  ".join("%.2f" % s for s in Orange.evaluation.CA(avaliacao)))
-print("Precisão  %s" % "  ".join("%.2f" % s for s in Orange.evaluation.Precision(avaliacao)))
-print("Revocação %s" % "  ".join("%.2f" % s for s in Orange.evaluation.Recall(avaliacao)))
-print("F1        %s" % "  ".join("%.2f" % s for s in Orange.evaluation.F1(avaliacao)))
-print("ROC       %s" % "  ".join("%.2f" % s for s in Orange.evaluation.AUC(avaliacao)))
+print(" " * 10 + " | ".join("%-4s" % learner.name for learner in aprendizado))
+print("Acurácia  %s" % " | ".join("%.2f" % s for s in Orange.evaluation.CA(avaliacao)))
+print("Precisão  %s" % " | ".join("%.2f" % s for s in Orange.evaluation.Precision(avaliacao)))
+print("Revocação %s" % " | ".join("%.2f" % s for s in Orange.evaluation.Recall(avaliacao)))
+print("F1        %s" % " | ".join("%.2f" % s for s in Orange.evaluation.F1(avaliacao)))
+print("ROC       %s" % " | ".join("%.2f" % s for s in Orange.evaluation.AUC(avaliacao)))
